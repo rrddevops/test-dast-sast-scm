@@ -108,6 +108,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Start Flask app
+        run: |
+          docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          sleep 10
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -147,22 +152,20 @@ jobs:
           docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
 
-      - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.6.0
+      - name: Install ZAP
+        run: |
+          wget https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz
+          tar -xzf ZAP_2.14.0_Linux.tar.gz
+          sudo mv ZAP_2.14.0 /opt/zap
+          echo "/opt/zap" >> $GITHUB_PATH
         continue-on-error: true
-        timeout-minutes: 15
-        with:
-          target: 'http://localhost:5000'
-          cmd_options: '-a'
 
-      - name: Run ZAP Baseline Scan (Alternative)
-        uses: zaproxy/action-baseline@v0.5.0
+      - name: Run ZAP Baseline Scan
+        run: |
+          /opt/zap/zap.sh -cmd -quickurl http://localhost:5000 -quickout /tmp/zap-report.html -quickprogress
+          echo "ZAP scan completed"
         continue-on-error: true
         timeout-minutes: 15
-        if: failure()
-        with:
-          target: 'http://localhost:5000'
-          cmd_options: '-a'
 
       - name: Simple ZAP Test
         run: |
