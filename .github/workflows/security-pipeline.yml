@@ -147,6 +147,11 @@ jobs:
           docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
 
+      - name: Pull ZAP Docker image
+        run: |
+          docker pull owasp/zap2docker-stable || docker pull owasp/zap2docker-weekly
+        continue-on-error: true
+
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.8.0
         continue-on-error: true
@@ -155,7 +160,6 @@ jobs:
           target: 'http://localhost:5000'
           cmd_options: '-a'
           docker_name: 'owasp/zap2docker-stable'
-          docker_options: '--pull always'
 
       - name: Run ZAP Baseline Scan (Fallback)
         uses: zaproxy/action-baseline@v0.8.0
@@ -166,7 +170,6 @@ jobs:
           target: 'http://localhost:5000'
           cmd_options: '-a'
           docker_name: 'owasp/zap2docker-weekly'
-          docker_options: '--pull always'
 
       - name: Upload ZAP results
         uses: actions/upload-artifact@v4
