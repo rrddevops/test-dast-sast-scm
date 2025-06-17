@@ -1,31 +1,12 @@
-# Build stage
-FROM node:18-alpine AS build
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+EXPOSE 5000
 
-# Production stage
-FROM nginx:alpine
-
-# Copy built application from build stage
-COPY --from=build /app/build /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
-
-# Expose port 80
-EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"] 

@@ -18,20 +18,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '18'
-          cache: 'npm'
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test -- --coverage --watchAll=false
+        run: pip install -r requirements.txt
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -121,37 +115,21 @@ jobs:
   dast:
     name: DAST - ZAP Proxy
     runs-on: ubuntu-latest
-    needs: build-and-deploy
+    needs: scm
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start target application
+      - name: Start Flask app
         run: |
-          # Start the application for testing
-          # This could be your deployed application URL
-          echo "Target URL: ${{ secrets.TARGET_URL }}"
+          docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          sleep 10
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.8.0
         with:
-          target: '${{ secrets.TARGET_URL }}'
-          rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
-
-      - name: Run ZAP Full Scan
-        uses: zaproxy/action-full-scan@v0.8.0
-        with:
-          target: '${{ secrets.TARGET_URL }}'
-          rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
-
-      - name: Run ZAP API Scan
-        uses: zaproxy/action-api-scan@v0.8.0
-        with:
-          target: '${{ secrets.TARGET_URL }}'
-          rules_file_name: '.zap/rules.tsv'
+          target: 'http://localhost:5000'
           cmd_options: '-a'
 
       - name: Upload ZAP results
@@ -159,9 +137,7 @@ jobs:
         if: always()
         with:
           name: zap-results
-          path: |
-            .zap/wrk/
-            .zap/reports/
+          path: .zap/wrk/
 
   # Security Summary
   security-summary:

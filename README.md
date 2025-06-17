@@ -1,44 +1,30 @@
-# Test DAST SAST SCM
+# Test DAST SAST SCM Flask
 
-Projeto de exemplo com frontend React, Docker, e pipeline CI/CD no GitHub Actions com SAST (SonarCloud), SCM (Trivy) e DAST (ZAP Proxy).
+Aplicação Flask de exemplo com pipeline CI/CD (SAST, SCM, DAST).
 
-## ✨ Funcionalidades
-- **Frontend React** simples e responsivo
-- **Dockerfile** para build e deploy containerizado
-- **Pipeline de segurança** automatizada:
-  - **SAST:** SonarCloud (análise estática de código)
-  - **SCM:** Trivy (análise de vulnerabilidades em imagem Docker e filesystem)
-  - **DAST:** ZAP Proxy (testes dinâmicos de segurança)
+## Como rodar localmente
 
----
+```sh
+pip install -r requirements.txt
+python app.py
+```
 
-## 🚀 Como rodar localmente
+Acesse: http://localhost:5000
 
-1. **Clone o repositório:**
-   ```sh
-   git clone https://github.com/seu-usuario/test-dast-sast-scm.git
-   cd test-dast-sast-scm
-   ```
+## Como rodar com Docker
 
-2. **Instale as dependências:**
-   ```sh
-   npm install
-   ```
+```sh
+docker build -t test-dast-sast-scm-flask .
+docker run -p 5000:5000 test-dast-sast-scm-flask
+```
 
-3. **Rode o projeto:**
-   ```sh
-   npm start
-   ```
-   O app estará disponível em [http://localhost:3000](http://localhost:3000)
+## Pipeline
 
-4. **Build Docker (opcional):**
-   ```sh
-   docker build -t test-dast-sast-scm .
-   docker run -p 8080:80 test-dast-sast-scm
-   ```
-   O app estará disponível em [http://localhost:8080](http://localhost:8080)
+- SAST: SonarCloud
+- SCM: Trivy
+- DAST: ZAP Proxy
 
----
+Configure o segredo SONAR_TOKEN no GitHub.
 
 ## 🛡️ Pipeline de Segurança (CI/CD)
 
