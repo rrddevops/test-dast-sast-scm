@@ -6,6 +6,11 @@ import pickle
 import base64
 import yaml
 import xml.etree.ElementTree as ET
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -23,6 +28,18 @@ HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'true').lower() == 
 
 # Configurações "inseguras" para SCM
 INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'true').lower() == 'true'
+
+# Log vulnerability status on startup
+logger.info(f"Vulnerability Status:")
+logger.info(f"  SAST_VULNS: {SAST_VULNS}")
+logger.info(f"  SCM_VULNS: {SCM_VULNS}")
+logger.info(f"  DAST_VULNS: {DAST_VULNS}")
+logger.info(f"  XSS_VULN: {XSS_VULN}")
+logger.info(f"  SQL_INJECTION_VULN: {SQL_INJECTION_VULN}")
+logger.info(f"  COMMAND_INJECTION_VULN: {COMMAND_INJECTION_VULN}")
+logger.info(f"  PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
+logger.info(f"  HARDCODED_SECRETS_VULN: {HARDCODED_SECRETS_VULN}")
+logger.info(f"  INSECURE_DEPENDENCIES: {INSECURE_DEPENDENCIES}")
 
 @app.route("/")
 def home():
@@ -153,6 +170,7 @@ def echo():
 
 @app.route("/api/user/<user_id>")
 def get_user(user_id):
+    logger.info(f"SAST SQL Injection test - SAST_VULNS: {SAST_VULNS}, SQL_INJECTION_VULN: {SQL_INJECTION_VULN}")
     if not SAST_VULNS or not SQL_INJECTION_VULN:
         return jsonify({"message": "SQL injection vulnerability disabled"})
     
@@ -169,6 +187,7 @@ def get_user(user_id):
 
 @app.route("/api/ping", methods=["POST"])
 def ping_host():
+    logger.info(f"SAST Command Injection test - SAST_VULNS: {SAST_VULNS}, COMMAND_INJECTION_VULN: {COMMAND_INJECTION_VULN}")
     if not SAST_VULNS or not COMMAND_INJECTION_VULN:
         return jsonify({"message": "Command injection vulnerability disabled"})
     
@@ -187,6 +206,7 @@ def ping_host():
 
 @app.route("/api/secrets")
 def get_secrets():
+    logger.info(f"SCM Hardcoded Secrets test - SCM_VULNS: {SCM_VULNS}, HARDCODED_SECRETS_VULN: {HARDCODED_SECRETS_VULN}")
     if not SCM_VULNS or not HARDCODED_SECRETS_VULN:
         return jsonify({"message": "Hardcoded secrets vulnerability disabled"})
     
@@ -202,16 +222,17 @@ def get_secrets():
 
 @app.route("/api/dependencies")
 def get_dependencies():
+    logger.info(f"SCM Insecure Dependencies test - SCM_VULNS: {SCM_VULNS}, INSECURE_DEPENDENCIES: {INSECURE_DEPENDENCIES}")
     if not SCM_VULNS or not INSECURE_DEPENDENCIES:
         return jsonify({"message": "Insecure dependencies vulnerability disabled"})
     
     # VULNERABILITY: Insecure Dependencies
     dependencies = {
-        "flask": "0.12.1",  # VULNERABLE: Old version with known vulnerabilities
-        "requests": "2.18.4",  # VULNERABLE: Old version
-        "urllib3": "1.21.1",  # VULNERABLE: Old version
-        "cryptography": "1.7.2",  # VULNERABLE: Old version
-        "pyyaml": "3.12"  # VULNERABLE: Old version with CVE-2017-18342
+        "flask": "2.3.3",  # Current version
+        "requests": "2.25.1",  # VULNERABLE: Old version
+        "urllib3": "1.26.5",  # VULNERABLE: Old version
+        "cryptography": "3.4.8",  # VULNERABLE: Old version
+        "pyyaml": "5.4.1"  # VULNERABLE: Old version
     }
     return jsonify(dependencies)
 
@@ -219,6 +240,7 @@ def get_dependencies():
 
 @app.route("/api/file/<path:file_path>")
 def read_file(file_path):
+    logger.info(f"DAST Path Traversal test - DAST_VULNS: {DAST_VULNS}, PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
     if not DAST_VULNS or not PATH_TRAVERSAL_VULN:
         return jsonify({"message": "Path traversal vulnerability disabled"})
     
@@ -232,6 +254,7 @@ def read_file(file_path):
 
 @app.route("/api/headers")
 def get_headers():
+    logger.info(f"DAST Insecure Headers test - DAST_VULNS: {DAST_VULNS}")
     if not DAST_VULNS:
         return jsonify({"message": "DAST vulnerabilities disabled"})
     

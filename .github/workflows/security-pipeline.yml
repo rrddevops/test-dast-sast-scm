@@ -151,7 +151,17 @@ jobs:
       - name: Start Flask app
         run: |
           docker pull ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker run -d -p 5000:5000 \
+            -e SAST_VULNS=${{ secrets.SAST_VULNS || 'false' }} \
+            -e SCM_VULNS=${{ secrets.SCM_VULNS || 'false' }} \
+            -e DAST_VULNS=${{ secrets.DAST_VULNS || 'false' }} \
+            -e XSS_VULN=${{ secrets.XSS_VULN || 'false' }} \
+            -e SQL_INJECTION_VULN=${{ secrets.SQL_INJECTION_VULN || 'false' }} \
+            -e COMMAND_INJECTION_VULN=${{ secrets.COMMAND_INJECTION_VULN || 'false' }} \
+            -e PATH_TRAVERSAL_VULN=${{ secrets.PATH_TRAVERSAL_VULN || 'false' }} \
+            -e HARDCODED_SECRETS_VULN=${{ secrets.HARDCODED_SECRETS_VULN || 'false' }} \
+            -e INSECURE_DEPENDENCIES=${{ secrets.INSECURE_DEPENDENCIES || 'false' }} \
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
 
       - name: Verify app is running

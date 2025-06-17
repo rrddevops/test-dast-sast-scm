@@ -1,163 +1,287 @@
-# Test DAST SAST SCM Flask
+# 🔒 Security Testing Pipeline - SAST, SCM, DAST
 
-Aplicação Flask de exemplo com pipeline CI/CD (SAST, SCM, DAST) e **vulnerabilidades controláveis** para testar a esteira de segurança.
+Pipeline completo de CI/CD com testes de segurança integrados usando GitHub Actions, SonarCloud (SAST), Trivy (SCM) e ZAP Proxy (DAST).
 
-## 🔒 Aplicação com Vulnerabilidades Controláveis
+## 🚀 Funcionalidades
 
-Esta aplicação contém vulnerabilidades intencionais que podem ser **ativadas/desativadas** via variáveis de ambiente para testar cada ferramenta da esteira de segurança:
+- **SAST (Static Application Security Testing)**: Análise estática com SonarCloud
+- **SCM (Software Composition Management)**: Análise de dependências com Trivy
+- **DAST (Dynamic Application Security Testing)**: Testes dinâmicos com ZAP Proxy
+- **Build & Deploy**: Containerização com Docker e deploy no Docker Hub
+- **Security Summary**: Relatório consolidado de segurança
+- **Vulnerability Control**: Controle de vulnerabilidades via variáveis de ambiente
 
-- **🔍 SAST**: XSS, SQL Injection, Command Injection
-- **📦 SCM**: Hardcoded Secrets, Insecure Dependencies  
-- **🛡️ DAST**: Path Traversal, Insecure Headers
+## 🏗️ Arquitetura
 
-## 🚀 Como rodar localmente
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   GitHub Repo   │───▶│  GitHub Actions │───▶│  Security Tools │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │
+                              ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   SonarCloud    │    │   Docker Hub    │    │   ZAP Proxy     │
+│     (SAST)      │    │   (Registry)    │    │     (DAST)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
-### 1. Instalação básica
-```sh
+## 🛠️ Tecnologias
+
+- **Backend**: Python Flask
+- **Container**: Docker
+- **CI/CD**: GitHub Actions
+- **SAST**: SonarCloud
+- **SCM**: Trivy
+- **DAST**: ZAP Proxy
+- **Registry**: Docker Hub
+
+## 📋 Pré-requisitos
+
+### Secrets do GitHub (Obrigatórios)
+
+Configure em `Settings` > `Secrets and variables` > `Actions`:
+
+#### **SonarCloud**
+- `SONAR_TOKEN` - Token de acesso do SonarCloud
+- `SONAR_PROJECTKEY` - Project key (ex: `rrddevops_test-dast-sast-scm`)
+- `SONAR_ORGANIZATION` - Organization (ex: `rrddevops`)
+
+#### **Docker Hub**
+- `DOCKER_USERNAME` - Seu usuário do Docker Hub
+- `DOCKER_PASSWORD` - Token de acesso do Docker Hub
+
+### Secrets para Controle de Vulnerabilidades (Opcionais)
+
+Para testar diferentes cenários de segurança:
+
+```bash
+# Controle Geral
+SAST_VULNS=true/false
+SCM_VULNS=true/false
+DAST_VULNS=true/false
+
+# Controle Específico
+XSS_VULN=true/false
+SQL_INJECTION_VULN=true/false
+COMMAND_INJECTION_VULN=true/false
+PATH_TRAVERSAL_VULN=true/false
+HARDCODED_SECRETS_VULN=true/false
+INSECURE_DEPENDENCIES=true/false
+```
+
+## 🚀 Como Usar
+
+### 1. Clone o Repositório
+```bash
+git clone https://github.com/seu-usuario/test-dast-sast-scm.git
+cd test-dast-sast-scm
+```
+
+### 2. Configure os Secrets
+Siga o guia em [github-secrets-config.md](github-secrets-config.md)
+
+### 3. Execute o Pipeline
+```bash
+git add .
+git commit -m "Initial commit"
+git push origin main
+```
+
+### 4. Monitore os Resultados
+- Acesse a aba **Actions** no GitHub
+- Verifique o **Security Summary** no final do workflow
+- Consulte os relatórios individuais de cada ferramenta
+
+## 🧪 Cenários de Teste
+
+### Aplicação Segura (Padrão)
+Não configure secrets de vulnerabilidade - todos serão `false` por padrão.
+
+### Teste SAST
+```bash
+SAST_VULNS=true
+XSS_VULN=true
+SQL_INJECTION_VULN=true
+COMMAND_INJECTION_VULN=true
+```
+
+### Teste SCM
+```bash
+SCM_VULNS=true
+HARDCODED_SECRETS_VULN=true
+INSECURE_DEPENDENCIES=true
+```
+
+### Teste DAST
+```bash
+DAST_VULNS=true
+PATH_TRAVERSAL_VULN=true
+```
+
+### Teste Completo
+```bash
+SAST_VULNS=true
+SCM_VULNS=true
+DAST_VULNS=true
+# + todas as vulnerabilidades específicas
+```
+
+## 📊 Workflow Stages
+
+### 1. **SAST - SonarCloud**
+- Análise estática do código
+- Detecção de vulnerabilidades de código
+- Quality Gate enforcement
+- Upload de resultados SARIF
+
+### 2. **SCM - Trivy**
+- Scan de dependências vulneráveis
+- Análise de Docker image
+- Upload de resultados SARIF
+- Categorização única para evitar conflitos
+
+### 3. **Build & Deploy**
+- Build da Docker image
+- Push para Docker Hub
+- Deploy da aplicação
+
+### 4. **DAST - ZAP Proxy**
+- Testes dinâmicos da aplicação
+- Scan de vulnerabilidades web
+- Análise de headers e configurações
+- Upload de resultados
+
+### 5. **Security Summary**
+- Consolidação de resultados
+- Status de cada ferramenta
+- Links para relatórios detalhados
+- Próximos passos recomendados
+
+## 🔍 Verificação Local
+
+### Executar Aplicação
+```bash
+# Instalar dependências
 pip install -r requirements.txt
-python app.py
-```
 
-### 2. Configurar vulnerabilidades
-```sh
-# Todas vulnerabilidades ativas (padrão)
+# Executar (vulnerabilidades desativadas por padrão)
+python app.py
+
+# Ou com vulnerabilidades ativas
 export SAST_VULNS=true
 export SCM_VULNS=true
 export DAST_VULNS=true
 python app.py
 ```
 
-### 3. Cenários de teste específicos
-```sh
-# Apenas SAST
-export SAST_VULNS=true
-export SCM_VULNS=false
-export DAST_VULNS=false
-python app.py
+### Testar com Docker
+```bash
+# Build da imagem
+docker build -t security-test-app .
 
-# Apenas SCM
-export SAST_VULNS=false
-export SCM_VULNS=true
-export DAST_VULNS=false
-python app.py
-
-# Aplicação segura
-export SAST_VULNS=false
-export SCM_VULNS=false
-export DAST_VULNS=false
-python app.py
-```
-
-Acesse: http://localhost:5000
-
-## 🐳 Como rodar com Docker
-
-### Build e execução básica
-```sh
-docker build -t test-dast-sast-scm-flask .
-docker run -p 5000:5000 test-dast-sast-scm-flask
-```
-
-### Com vulnerabilidades específicas
-```sh
+# Executar container
 docker run -p 5000:5000 \
-  -e SAST_VULNS=true \
+  -e SAST_VULNS=false \
   -e SCM_VULNS=false \
-  -e DAST_VULNS=true \
-  test-dast-sast-scm-flask
+  -e DAST_VULNS=false \
+  security-test-app
 ```
 
-## 🧪 Testando a Esteira de Segurança
+### Verificar Status
+```bash
+# Status das vulnerabilidades
+curl http://localhost:5000/api/config
 
-### 1. **Teste SAST (SonarCloud)**
-```sh
-export SAST_VULNS=true
-export SCM_VULNS=false
-export DAST_VULNS=false
-# Faça commit e push - SonarCloud deve detectar vulnerabilidades
+# Health check
+curl http://localhost:5000/health
 ```
-
-### 2. **Teste SCM (Trivy)**
-```sh
-export SAST_VULNS=false
-export SCM_VULNS=true
-export DAST_VULNS=false
-# Faça commit e push - Trivy deve detectar dependências vulneráveis
-```
-
-### 3. **Teste DAST (ZAP Proxy)**
-```sh
-export SAST_VULNS=false
-export SCM_VULNS=false
-export DAST_VULNS=true
-# Faça commit e push - ZAP deve detectar vulnerabilidades web
-```
-
-## 📊 Interface Web
-
-A aplicação possui uma interface web em http://localhost:5000 com:
-
-- **Status visual** das vulnerabilidades (ativo/inativo)
-- **Botões de teste** para cada tipo de vulnerabilidade
-- **Feedback em tempo real** dos testes
-- **Configuração via variáveis de ambiente**
-
-## 🔍 Vulnerabilidades Implementadas
-
-### SAST (Static Application Security Testing)
-- **XSS**: Cross-Site Scripting via innerHTML
-- **SQL Injection**: String concatenation em queries SQL
-- **Command Injection**: Execução direta de comandos do sistema
-
-### SCM (Software Composition Management)
-- **Hardcoded Secrets**: Senhas e chaves hardcoded no código
-- **Insecure Dependencies**: Versões vulneráveis de bibliotecas
-
-### DAST (Dynamic Application Security Testing)
-- **Path Traversal**: Acesso a arquivos sem validação de path
-- **Insecure Headers**: Headers HTTP que expõem informações
-
-## 🛡️ Pipeline de Segurança
-
-O workflow do GitHub Actions executa automaticamente:
-
-1. **SAST (SonarCloud):**
-   - Analisa o código fonte em busca de vulnerabilidades
-   - Necessário configurar o segredo `SONAR_TOKEN`
-
-2. **SCM (Trivy):**
-   - Analisa a imagem Docker e filesystem
-   - Resultados enviados para a aba Security do GitHub
-
-3. **DAST (ZAP Proxy):**
-   - Executa testes dinâmicos de segurança
-   - Resultados disponíveis como artefatos do workflow
-
-## 🔑 Segredos necessários no GitHub
-
-- `SONAR_TOKEN`: Token do SonarCloud
-- `SONAR_PROJECTKEY`: Project key do SonarCloud
-- `SONAR_ORGANIZATION`: Organization do SonarCloud
-- `DOCKER_USERNAME`: Usuário do Docker Hub
-- `DOCKER_PASSWORD`: Token de acesso do Docker Hub
 
 ## 📁 Estrutura do Projeto
 
 ```
-├── app.py                    # Aplicação Flask com vulnerabilidades
-├── requirements.txt          # Dependências (incluindo vulneráveis)
-├── Dockerfile               # Build da aplicação
-├── vulnerability-config.md  # Guia de configuração
-├── sonar-project.properties # Configuração SonarCloud
-└── .github/workflows/
-    └── security-pipeline.yml # Pipeline CI/CD
+test-dast-sast-scm/
+├── .github/
+│   └── workflows/
+│       └── security-pipeline.yml    # Pipeline principal
+├── src/
+│   └── app.py                       # Aplicação Flask
+├── requirements.txt                 # Dependências Python
+├── Dockerfile                      # Containerização
+├── nginx.conf                      # Configuração Nginx
+├── sonar-project.properties        # Configuração SonarCloud
+├── vulnerability-config.md         # Guia de configuração
+├── github-secrets-config.md        # Configuração de secrets
+└── README.md                       # Este arquivo
 ```
 
-## ⚠️ Aviso de Segurança
+## 🔧 Configurações
 
-⚠️ **ATENÇÃO**: Esta aplicação contém vulnerabilidades intencionais para fins de teste. 
-NUNCA use em ambiente de produção ou com dados reais!
+### SonarCloud
+- **Project Key**: Configurado via `SONAR_PROJECTKEY`
+- **Organization**: Configurado via `SONAR_ORGANIZATION`
+- **Quality Gate**: Bloqueia merge se falhar
 
-## 📖 Documentação Adicional
+### Trivy
+- **Severity**: CRITICAL, HIGH, MEDIUM
+- **Format**: SARIF para integração com GitHub
+- **Categories**: Únicas para evitar conflitos
 
-Veja `vulnerability-config.md` para detalhes completos sobre configuração e cenários de teste. 
+### ZAP Proxy
+- **Scan Type**: Baseline scan
+- **Target**: Aplicação Flask rodando no container
+- **Timeout**: 15 minutos
+
+## 📈 Resultados Esperados
+
+### Com Vulnerabilidades Desativadas
+- ✅ SAST: SonarCloud passa sem problemas críticos
+- ✅ SCM: Trivy detecta poucas ou nenhuma vulnerabilidade
+- ✅ DAST: ZAP encontra poucos problemas
+- ✅ Quality Gate: Aprovado
+
+### Com Vulnerabilidades Ativadas
+- ⚠️ SAST: SonarCloud detecta vulnerabilidades de código
+- ⚠️ SCM: Trivy detecta dependências vulneráveis
+- ⚠️ DAST: ZAP detecta vulnerabilidades web
+- ❌ Quality Gate: Pode falhar dependendo da configuração
+
+## 🚨 Troubleshooting
+
+### Problema: Build falha no Docker
+**Solução**: As dependências foram atualizadas para versões compatíveis. Verifique os logs do build.
+
+### Problema: SonarCloud não encontra o projeto
+**Solução**: Verifique se `SONAR_PROJECTKEY` e `SONAR_ORGANIZATION` estão corretos.
+
+### Problema: ZAP não consegue acessar a aplicação
+**Solução**: Verifique se a aplicação está rodando e acessível na porta 5000.
+
+### Problema: Vulnerabilidades não estão sendo ativadas
+**Solução**: Verifique se os secrets estão configurados corretamente no GitHub.
+
+## 📚 Documentação Adicional
+
+- [Configuração de Secrets](github-secrets-config.md)
+- [Configuração de Vulnerabilidades](vulnerability-config.md)
+- [SonarCloud Documentation](https://docs.sonarcloud.io/)
+- [Trivy Documentation](https://aquasecurity.github.io/trivy/)
+- [ZAP Proxy Documentation](https://www.zaproxy.org/docs/)
+
+## 🤝 Contribuição
+
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+
+## 🔗 Links Úteis
+
+- [GitHub Actions](https://github.com/features/actions)
+- [SonarCloud](https://sonarcloud.io/)
+- [Docker Hub](https://hub.docker.com/)
+- [ZAP Proxy](https://www.zaproxy.org/) 
