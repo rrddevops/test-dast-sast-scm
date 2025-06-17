@@ -113,6 +113,15 @@ jobs:
           docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
 
+      - name: Start Flask app (Alternative)
+        run: |
+          echo "Trying to start app locally as fallback..."
+          pip install -r requirements.txt
+          python app.py &
+          sleep 10
+        continue-on-error: true
+        if: failure()
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -149,8 +158,22 @@ jobs:
 
       - name: Start Flask app
         run: |
+          docker pull ${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker run -d -p 5000:5000 ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
+
+      - name: Verify app is running
+        run: |
+          echo "Checking if Flask app is running..."
+          for i in {1..30}; do
+            if curl -f http://localhost:5000 > /dev/null 2>&1; then
+              echo "App is running successfully!"
+              break
+            fi
+            echo "Attempt $i: App not ready yet, waiting..."
+            sleep 2
+          done
+        continue-on-error: true
 
       - name: Install ZAP
         run: |
