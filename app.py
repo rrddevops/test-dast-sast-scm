@@ -169,98 +169,153 @@ def echo():
 @app.route("/api/user/<user_id>")
 def get_user(user_id):
     logger.info(f"SAST SQL Injection test - SAST_VULNS: {SAST_VULNS}, SQL_INJECTION_VULN: {SQL_INJECTION_VULN}")
+    
     if not SAST_VULNS or not SQL_INJECTION_VULN:
         return jsonify({"message": "SQL injection vulnerability disabled"})
     
-    # VULNERABILITY: SQL Injection
-    query = f"SELECT * FROM users WHERE id = {user_id}"
-    try:
-        conn = sqlite3.connect(':memory:')
-        cursor = conn.cursor()
-        cursor.execute(query)  # VULNERABLE: Direct string concatenation
-        result = cursor.fetchall()
-        return jsonify({"users": result})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    # VULNERABILITY: SQL Injection (only when enabled)
+    if SAST_VULNS and SQL_INJECTION_VULN:
+        query = f"SELECT * FROM users WHERE id = {user_id}"
+        try:
+            conn = sqlite3.connect(':memory:')
+            cursor = conn.cursor()
+            cursor.execute(query)  # VULNERABLE: Direct string concatenation
+            result = cursor.fetchall()
+            return jsonify({"users": result})
+        except Exception as e:
+            return jsonify({"error": str(e)})
+    else:
+        # Secure version
+        try:
+            conn = sqlite3.connect(':memory:')
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))  # SECURE: Parameterized query
+            result = cursor.fetchall()
+            return jsonify({"users": result})
+        except Exception as e:
+            return jsonify({"error": str(e)})
 
 @app.route("/api/ping", methods=["POST"])
 def ping_host():
     logger.info(f"SAST Command Injection test - SAST_VULNS: {SAST_VULNS}, COMMAND_INJECTION_VULN: {COMMAND_INJECTION_VULN}")
+    
     if not SAST_VULNS or not COMMAND_INJECTION_VULN:
         return jsonify({"message": "Command injection vulnerability disabled"})
     
     data = request.json
     host = data.get('host', '')
     
-    # VULNERABILITY: Command Injection
-    command = f"ping -c 1 {host}"  # VULNERABLE: Direct command execution
-    try:
-        result = subprocess.check_output(command, shell=True, text=True)  # VULNERABLE: shell=True
-        return jsonify({"result": result})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    # VULNERABILITY: Command Injection (only when enabled)
+    if SAST_VULNS and COMMAND_INJECTION_VULN:
+        command = f"ping -c 1 {host}"  # VULNERABLE: Direct command execution
+        try:
+            result = subprocess.check_output(command, shell=True, text=True)  # VULNERABLE: shell=True
+            return jsonify({"result": result})
+        except Exception as e:
+            return jsonify({"error": str(e)})
+    else:
+        # Secure version - just return a message
+        return jsonify({"message": f"Ping to {host} would be executed (simulated)"})
 
 # ===== SCM VULNERABILITIES =====
 
 @app.route("/api/secrets")
 def get_secrets():
     logger.info(f"SCM Hardcoded Secrets test - SCM_VULNS: {SCM_VULNS}, HARDCODED_SECRETS_VULN: {HARDCODED_SECRETS_VULN}")
+    
     if not SCM_VULNS or not HARDCODED_SECRETS_VULN:
         return jsonify({"message": "Hardcoded secrets vulnerability disabled"})
     
-    # VULNERABILITY: Hardcoded Secrets
-    secrets = {
-        "database_password": "super_secret_password_123",
-        "api_key": "sk-1234567890abcdef",
-        "jwt_secret": "my_jwt_secret_key_2024",
-        "aws_access_key": "AKIAIOSFODNN7EXAMPLE",
-        "aws_secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-    }
-    return jsonify(secrets)
+    # VULNERABILITY: Hardcoded Secrets (only when enabled)
+    if SCM_VULNS and HARDCODED_SECRETS_VULN:
+        secrets = {
+            "database_password": "super_secret_password_123",
+            "api_key": "sk-1234567890abcdef",
+            "jwt_secret": "my_jwt_secret_key_2024",
+            "aws_access_key": "AKIAIOSFODNN7EXAMPLE",
+            "aws_secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        }
+        return jsonify(secrets)
+    else:
+        # Secure version
+        return jsonify({"message": "No secrets exposed"})
 
 @app.route("/api/dependencies")
 def get_dependencies():
     logger.info(f"SCM Insecure Dependencies test - SCM_VULNS: {SCM_VULNS}, INSECURE_DEPENDENCIES: {INSECURE_DEPENDENCIES}")
+    
     if not SCM_VULNS or not INSECURE_DEPENDENCIES:
         return jsonify({"message": "Insecure dependencies vulnerability disabled"})
     
-    # VULNERABILITY: Insecure Dependencies
-    dependencies = {
-        "flask": "2.3.3",  # Current version
-        "requests": "2.28.2",  # VULNERABLE: Old version
-        "gunicorn": "21.2.0"  # Current version
-    }
-    return jsonify(dependencies)
+    # VULNERABILITY: Insecure Dependencies (only when enabled)
+    if SCM_VULNS and INSECURE_DEPENDENCIES:
+        dependencies = {
+            "flask": "2.3.3",  # Current version
+            "requests": "2.28.2",  # VULNERABLE: Old version
+            "gunicorn": "21.2.0"  # Current version
+        }
+        return jsonify(dependencies)
+    else:
+        # Secure version
+        dependencies = {
+            "flask": "2.3.3",  # Current version
+            "requests": "2.31.0",  # SECURE: Latest version
+            "gunicorn": "21.2.0"  # Current version
+        }
+        return jsonify(dependencies)
 
 # ===== DAST VULNERABILITIES =====
 
 @app.route("/api/file/<path:file_path>")
 def read_file(file_path):
     logger.info(f"DAST Path Traversal test - DAST_VULNS: {DAST_VULNS}, PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
+    
     if not DAST_VULNS or not PATH_TRAVERSAL_VULN:
         return jsonify({"message": "Path traversal vulnerability disabled"})
     
-    # VULNERABILITY: Path Traversal
-    try:
-        with open(file_path, 'r') as f:  # VULNERABLE: No path validation
-            content = f.read()
-        return jsonify({"content": content})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    # VULNERABILITY: Path Traversal (only when enabled)
+    if DAST_VULNS and PATH_TRAVERSAL_VULN:
+        try:
+            with open(file_path, 'r') as f:  # VULNERABLE: No path validation
+                content = f.read()
+            return jsonify({"content": content})
+        except Exception as e:
+            return jsonify({"error": str(e)})
+    else:
+        # Secure version
+        import pathlib
+        try:
+            # Validate path to prevent traversal
+            safe_path = pathlib.Path(file_path).resolve()
+            if '..' in str(safe_path):
+                return jsonify({"error": "Path traversal not allowed"})
+            with open(safe_path, 'r') as f:
+                content = f.read()
+            return jsonify({"content": content})
+        except Exception as e:
+            return jsonify({"error": str(e)})
 
 @app.route("/api/headers")
 def get_headers():
     logger.info(f"DAST Insecure Headers test - DAST_VULNS: {DAST_VULNS}")
+    
     if not DAST_VULNS:
         return jsonify({"message": "DAST vulnerabilities disabled"})
     
-    # VULNERABILITY: Insecure Headers
-    response = jsonify({"message": "Headers info"})
-    response.headers['X-Powered-By'] = 'Flask/2.0.1'  # VULNERABLE: Information disclosure
-    response.headers['Server'] = 'Apache/2.4.41'  # VULNERABLE: Information disclosure
-    response.headers['X-Frame-Options'] = 'NONE'  # VULNERABLE: Clickjacking
-    response.headers['X-Content-Type-Options'] = 'NONE'  # VULNERABLE: MIME sniffing
-    return response
+    # VULNERABILITY: Insecure Headers (only when enabled)
+    if DAST_VULNS:
+        response = jsonify({"message": "Headers info"})
+        response.headers['X-Powered-By'] = 'Flask/2.0.1'  # VULNERABLE: Information disclosure
+        response.headers['Server'] = 'Apache/2.4.41'  # VULNERABLE: Information disclosure
+        response.headers['X-Frame-Options'] = 'NONE'  # VULNERABLE: Clickjacking
+        response.headers['X-Content-Type-Options'] = 'NONE'  # VULNERABLE: MIME sniffing
+        return response
+    else:
+        # Secure version
+        response = jsonify({"message": "Headers info"})
+        response.headers['X-Frame-Options'] = 'DENY'  # SECURE: Prevent clickjacking
+        response.headers['X-Content-Type-Options'] = 'nosniff'  # SECURE: Prevent MIME sniffing
+        return response
 
 # ===== CONFIGURATION ENDPOINTS =====
 
