@@ -4,8 +4,6 @@ import subprocess
 import sqlite3
 import pickle
 import base64
-import yaml
-import xml.etree.ElementTree as ET
 import logging
 
 # Configure logging
@@ -229,9 +227,8 @@ def get_dependencies():
     # VULNERABILITY: Insecure Dependencies
     dependencies = {
         "flask": "2.3.3",  # Current version
-        "requests": "2.25.1",  # VULNERABLE: Old version
-        "urllib3": "1.26.5",  # VULNERABLE: Old version
-        "pyyaml": "5.4.1"  # VULNERABLE: Old version
+        "requests": "2.28.2",  # VULNERABLE: Old version
+        "gunicorn": "21.2.0"  # Current version
     }
     return jsonify(dependencies)
 

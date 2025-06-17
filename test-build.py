@@ -20,20 +20,6 @@ def test_imports():
         print(f"❌ Requests import failed: {e}")
         return False
     
-    try:
-        import yaml
-        print(f"✅ PyYAML imported successfully: {yaml.__version__}")
-    except ImportError as e:
-        print(f"❌ PyYAML import failed: {e}")
-        return False
-    
-    try:
-        import urllib3
-        print(f"✅ urllib3 imported successfully: {urllib3.__version__}")
-    except ImportError as e:
-        print(f"❌ urllib3 import failed: {e}")
-        return False
-    
     return True
 
 def test_basic_functionality():
@@ -46,11 +32,6 @@ def test_basic_functionality():
         import requests
         response = requests.get("https://httpbin.org/get", timeout=5)
         print(f"✅ HTTP request successful: {response.status_code}")
-        
-        import yaml
-        data = {"test": "value"}
-        yaml_str = yaml.dump(data)
-        print(f"✅ YAML serialization successful: {yaml_str.strip()}")
         
         return True
     except Exception as e:

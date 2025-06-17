@@ -249,10 +249,11 @@ test-dast-sast-scm/
 
 ### Problema: Build falha no Docker
 **Solução**: 
-- As dependências foram simplificadas para evitar problemas de compilação
-- Removemos `cryptography` que causava erros de build
+- As dependências foram drasticamente simplificadas para evitar problemas de compilação
+- Removemos `cryptography`, `urllib3`, `pyyaml` que causavam erros de build
+- Usamos apenas `flask`, `gunicorn` e `requests` (versões estáveis)
+- Configuração do pip força uso de binários pré-compilados
 - Use `python test-build.py` para testar dependências localmente
-- Verifique os logs do build para detalhes específicos
 
 ### Problema: SonarCloud não encontra o projeto
 **Solução**: Verifique se `SONAR_PROJECTKEY` e `SONAR_ORGANIZATION` estão corretos.
@@ -273,7 +274,7 @@ python test-build.py
 
 ### Executar Aplicação
 ```bash
-# Instalar dependências
+# Instalar dependências (mínimas)
 pip install -r requirements.txt
 
 # Executar (vulnerabilidades desativadas por padrão)
