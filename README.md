@@ -73,7 +73,7 @@ INSECURE_DEPENDENCIES=true/false
 
 ### 1. Clone o Repositório
 ```bash
-git clone https://github.com/seu-usuario/test-dast-sast-scm.git
+git clone https://github.com/rrddevops/test-dast-sast-scm.git
 cd test-dast-sast-scm
 ```
 
@@ -248,7 +248,11 @@ test-dast-sast-scm/
 ## 🚨 Troubleshooting
 
 ### Problema: Build falha no Docker
-**Solução**: As dependências foram atualizadas para versões compatíveis. Verifique os logs do build.
+**Solução**: 
+- As dependências foram simplificadas para evitar problemas de compilação
+- Removemos `cryptography` que causava erros de build
+- Use `python test-build.py` para testar dependências localmente
+- Verifique os logs do build para detalhes específicos
 
 ### Problema: SonarCloud não encontra o projeto
 **Solução**: Verifique se `SONAR_PROJECTKEY` e `SONAR_ORGANIZATION` estão corretos.
@@ -258,6 +262,29 @@ test-dast-sast-scm/
 
 ### Problema: Vulnerabilidades não estão sendo ativadas
 **Solução**: Verifique se os secrets estão configurados corretamente no GitHub.
+
+## 🧪 Teste Local
+
+### Verificar Dependências
+```bash
+# Teste se todas as dependências funcionam
+python test-build.py
+```
+
+### Executar Aplicação
+```bash
+# Instalar dependências
+pip install -r requirements.txt
+
+# Executar (vulnerabilidades desativadas por padrão)
+python app.py
+
+# Ou com vulnerabilidades ativas
+export SAST_VULNS=true
+export SCM_VULNS=true
+export DAST_VULNS=true
+python app.py
+```
 
 ## 📚 Documentação Adicional
 

@@ -15,19 +15,19 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuração de vulnerabilidades (via variáveis de ambiente)
-SAST_VULNS = os.getenv('SAST_VULNS', 'true').lower() == 'true'
-SCM_VULNS = os.getenv('SCM_VULNS', 'true').lower() == 'true'
-DAST_VULNS = os.getenv('DAST_VULNS', 'true').lower() == 'true'
+SAST_VULNS = os.getenv('SAST_VULNS', 'false').lower() == 'true'
+SCM_VULNS = os.getenv('SCM_VULNS', 'false').lower() == 'true'
+DAST_VULNS = os.getenv('DAST_VULNS', 'false').lower() == 'true'
 
 # Vulnerabilidades específicas
-XSS_VULN = os.getenv('XSS_VULN', 'true').lower() == 'true'
-SQL_INJECTION_VULN = os.getenv('SQL_INJECTION_VULN', 'true').lower() == 'true'
-COMMAND_INJECTION_VULN = os.getenv('COMMAND_INJECTION_VULN', 'true').lower() == 'true'
-PATH_TRAVERSAL_VULN = os.getenv('PATH_TRAVERSAL_VULN', 'true').lower() == 'true'
-HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'true').lower() == 'true'
+XSS_VULN = os.getenv('XSS_VULN', 'false').lower() == 'true'
+SQL_INJECTION_VULN = os.getenv('SQL_INJECTION_VULN', 'false').lower() == 'true'
+COMMAND_INJECTION_VULN = os.getenv('COMMAND_INJECTION_VULN', 'false').lower() == 'true'
+PATH_TRAVERSAL_VULN = os.getenv('PATH_TRAVERSAL_VULN', 'false').lower() == 'true'
+HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'false').lower() == 'true'
 
 # Configurações "inseguras" para SCM
-INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'true').lower() == 'true'
+INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'false').lower() == 'true'
 
 # Log vulnerability status on startup
 logger.info(f"Vulnerability Status:")
@@ -231,7 +231,6 @@ def get_dependencies():
         "flask": "2.3.3",  # Current version
         "requests": "2.25.1",  # VULNERABLE: Old version
         "urllib3": "1.26.5",  # VULNERABLE: Old version
-        "cryptography": "3.4.8",  # VULNERABLE: Old version
         "pyyaml": "5.4.1"  # VULNERABLE: Old version
     }
     return jsonify(dependencies)

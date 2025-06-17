@@ -1,7 +1,6 @@
 flask==2.3.3
 gunicorn==21.2.0
-# Vulnerable dependencies for SCM testing (but compatible versions)
+# Vulnerable dependencies for SCM testing (simplified versions)
 requests==2.25.1
 urllib3==1.26.5
-cryptography==3.4.8
 pyyaml==5.4.1 

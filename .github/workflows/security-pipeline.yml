@@ -50,8 +50,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Build and test dependencies
+        run: |
+          echo "Testing dependencies..."
+          python test-build.py
+          echo "Dependencies test completed successfully"
+
       - name: Build Docker image
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+        run: |
+          echo "Building Docker image..."
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          echo "Docker image built successfully"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
