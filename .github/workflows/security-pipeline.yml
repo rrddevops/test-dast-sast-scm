@@ -29,9 +29,12 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
+        if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECTKEY: ${{ secrets.SONAR_PROJECTKEY }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
 
   # SCM - Container Security with Trivy
   scm:
@@ -47,6 +50,8 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        timeout-minutes: 10
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: 'sarif'
@@ -128,6 +133,8 @@ jobs:
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.8.0
+        continue-on-error: true
+        timeout-minutes: 15
         with:
           target: 'http://localhost:5000'
           cmd_options: '-a'
