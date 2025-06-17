@@ -1,4 +1,8 @@
 flask==2.3.3
 gunicorn==21.2.0
 # Secure dependencies (vulnerable versions only when SCM_VULNS=true)
-requests==2.31.0 
+requests==2.31.0
+# Testing dependencies
+pytest==7.4.3
+pytest-cov==4.1.0
+coverage==7.3.2 
