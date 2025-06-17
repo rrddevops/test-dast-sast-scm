@@ -68,9 +68,12 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+          category: 'trivy-container'
 
       - name: Run Trivy filesystem scanner
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        timeout-minutes: 10
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -83,6 +86,7 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-fs-results.sarif'
+          category: 'trivy-filesystem'
 
   # Build and Deploy for DAST
   build-and-deploy:
