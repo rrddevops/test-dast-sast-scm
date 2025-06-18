@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuração de vulnerabilidades (via variáveis de ambiente)
-SAST_VULNS = os.getenv('SAST_VULNS', 'false').lower() == 'true'
-SCM_VULNS = os.getenv('SCM_VULNS', 'false').lower() == 'true'
-DAST_VULNS = os.getenv('DAST_VULNS', 'false').lower() == 'true'
+SAST_VULNS = os.getenv('SAST_VULNS', 'false').lower() == 'false'
+SCM_VULNS = os.getenv('SCM_VULNS', 'false').lower() == 'false'
+DAST_VULNS = os.getenv('DAST_VULNS', 'false').lower() == 'false'
 
 # Vulnerabilidades específicas
 XSS_VULN = os.getenv('XSS_VULN', 'false').lower() == 'true'
