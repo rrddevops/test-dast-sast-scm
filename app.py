@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string, redirect, url_for
 import os
 import logging
+import sqlite3
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -54,101 +55,12 @@ def home():
     </head>
     <body>
         <h1>🔒 Security Test Application</h1>
-        <p>Esta aplicação contém vulnerabilidades controláveis para testar SAST, SCM e DAST.</p>
-        
-        <div class="vuln-section {{ 'vuln-active' if SAST_VULNS else 'vuln-inactive' }}">
-            <h2>🔍 SAST Vulnerabilities</h2>
-            <p class="status">Status: <span class="{{ 'active' if SAST_VULNS else 'inactive' }}">{{ 'ACTIVE' if SAST_VULNS else 'INACTIVE' }}</span></p>
-            <p>Vulnerabilidades de código estático: XSS, SQL Injection, Command Injection, etc.</p>
-            <button onclick="testXSS()">Test XSS</button>
-            <button onclick="testSQLInjection()">Test SQL Injection</button>
-            <button onclick="testCommandInjection()">Test Command Injection</button>
-        </div>
-
-        <div class="vuln-section {{ 'vuln-active' if SCM_VULNS else 'vuln-inactive' }}">
-            <h2>📦 SCM Vulnerabilities</h2>
-            <p class="status">Status: <span class="{{ 'active' if SCM_VULNS else 'inactive' }}">{{ 'ACTIVE' if SCM_VULNS else 'INACTIVE' }}</span></p>
-            <p>Vulnerabilidades de dependências e configurações: secrets hardcoded, dependências inseguras.</p>
-            <button onclick="testHardcodedSecrets()">Test Hardcoded Secrets</button>
-            <button onclick="testInsecureDependencies()">Test Insecure Dependencies</button>
-        </div>
-
-        <div class="vuln-section {{ 'vuln-active' if DAST_VULNS else 'vuln-inactive' }}">
-            <h2>🛡️ DAST Vulnerabilities</h2>
-            <p class="status">Status: <span class="{{ 'active' if DAST_VULNS else 'inactive' }}">{{ 'ACTIVE' if DAST_VULNS else 'INACTIVE' }}</span></p>
-            <p>Vulnerabilidades de aplicação web: path traversal, headers inseguros, etc.</p>
-            <button onclick="testPathTraversal()">Test Path Traversal</button>
-            <button onclick="testInsecureHeaders()">Test Insecure Headers</button>
-        </div>
-
-        <div class="vuln-section">
-            <h2>⚙️ Configuration</h2>
-            <p>Configure as vulnerabilidades via variáveis de ambiente:</p>
-            <ul>
-                <li><code>SAST_VULNS=true/false</code> - Ativa/desativa vulnerabilidades SAST</li>
-                <li><code>SCM_VULNS=true/false</code> - Ativa/desativa vulnerabilidades SCM</li>
-                <li><code>DAST_VULNS=true/false</code> - Ativa/desativa vulnerabilidades DAST</li>
-            </ul>
-        </div>
-
-        <script>
-            function testXSS() {
-                const userInput = prompt("Enter your name:");
-                if (userInput) {
-                    document.getElementById('output').innerHTML = '<h3>Hello, ' + userInput + '!</h3>';
-                }
-            }
-
-            function testSQLInjection() {
-                const userInput = prompt("Enter user ID:");
-                if (userInput) {
-                    fetch('/api/user/' + userInput)
-                        .then(response => response.json())
-                        .then(data => alert('Result: ' + JSON.stringify(data)));
-                }
-            }
-
-            function testCommandInjection() {
-                const userInput = prompt("Enter hostname to ping:");
-                if (userInput) {
-                    fetch('/api/ping', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({host: userInput})
-                    })
-                    .then(response => response.json())
-                    .then(data => alert('Result: ' + JSON.stringify(data)));
-                }
-            }
-
-            function testHardcodedSecrets() {
-                fetch('/api/secrets')
-                    .then(response => response.json())
-                    .then(data => alert('Secrets: ' + JSON.stringify(data)));
-            }
-
-            function testInsecureDependencies() {
-                fetch('/api/dependencies')
-                    .then(response => response.json())
-                    .then(data => alert('Dependencies: ' + JSON.stringify(data)));
-            }
-
-            function testPathTraversal() {
-                const userInput = prompt("Enter file path:");
-                if (userInput) {
-                    fetch('/api/file/' + userInput)
-                        .then(response => response.json())
-                        .then(data => alert('Result: ' + JSON.stringify(data)));
-                }
-            }
-
-            function testInsecureHeaders() {
-                fetch('/api/headers')
-                    .then(response => response.json())
-                    .then(data => alert('Headers: ' + JSON.stringify(data)));
-            }
-        </script>
-        <div id="output"></div>
+        <p>Endpoints para teste de vulnerabilidades:</p>
+        <ul>
+            <li><code>/api/user/123</code> - SAST (SQL Injection)</li>
+            <li><code>/api/secrets</code> - SCM (Hardcoded Secrets)</li>
+            <li><code>/api/headers</code> - DAST (Information Disclosure)</li>
+        </ul>
     </body>
     </html>
     """, SAST_VULNS=SAST_VULNS, SCM_VULNS=SCM_VULNS, DAST_VULNS=DAST_VULNS)
@@ -162,29 +74,19 @@ def echo():
 
 @app.route("/api/user/<user_id>")
 def get_user(user_id):
-    logger.info(f"SAST SQL Injection test - SAST_VULNS: {SAST_VULNS}, SQL_INJECTION_VULN: {SQL_INJECTION_VULN}")
+    # SAST Vulnerability (SQL Injection) - Comment/Uncomment this line
+    query = f"SELECT * FROM users WHERE id = {user_id}"  # NOSONAR
     
-    if not SAST_VULNS or not SQL_INJECTION_VULN:
-        return jsonify({"message": "SQL injection vulnerability disabled"})
-    
-    # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
-    if SAST_VULNS and SQL_INJECTION_VULN:
-        import sqlite3
-        query = f"SELECT * FROM users WHERE id = {user_id}"  # NOSONAR
-        try:
-            conn = sqlite3.connect(':memory:')
-            cursor = conn.cursor()
-            # Create table first for testing
-            cursor.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
-            cursor.execute("INSERT INTO users (id, name) VALUES (123, 'test_user')")
-            cursor.execute(query)  # NOSONAR
-            result = cursor.fetchall()
-            return jsonify({"users": result})
-        except Exception as e:
-            return jsonify({"error": str(e)})
-    else:
-        # Secure version - no vulnerabilities
-        return jsonify({"message": "SQL injection vulnerability disabled"})
+    try:
+        conn = sqlite3.connect(':memory:')
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
+        cursor.execute("INSERT INTO users (id, name) VALUES (123, 'test_user')")
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route("/api/ping", methods=["POST"])
 def ping_host():
@@ -212,24 +114,10 @@ def ping_host():
 
 @app.route("/api/secrets")
 def get_secrets():
-    logger.info(f"SCM Hardcoded Secrets test - SCM_VULNS: {SCM_VULNS}, HARDCODED_SECRETS_VULN: {HARDCODED_SECRETS_VULN}")
+    # SCM Vulnerability (Hardcoded Secrets) - Comment/Uncomment this line
+    api_key = "sk_test_51ABCDEFGhijklmnop"  # NOSONAR
     
-    if not SCM_VULNS or not HARDCODED_SECRETS_VULN:
-        return jsonify({"message": "Hardcoded secrets vulnerability disabled"})
-    
-    # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
-    if SCM_VULNS and HARDCODED_SECRETS_VULN:
-        secrets = {
-            "database_password": "super_secret_password_123",  # NOSONAR
-            "api_key": "sk-1234567890abcdef",  # NOSONAR
-            "jwt_secret": "my_jwt_secret_key_2024",  # NOSONAR
-            "aws_access_key": "AKIAIOSFODNN7EXAMPLE",  # NOSONAR
-            "aws_secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"  # NOSONAR
-        }
-        return jsonify(secrets)
-    else:
-        # Secure version - no secrets exposed
-        return jsonify({"message": "Hardcoded secrets vulnerability disabled"})
+    return jsonify({"message": "Endpoint for testing SCM"})
 
 @app.route("/api/dependencies")
 def get_dependencies():
@@ -276,22 +164,10 @@ def read_file(file_path):
 
 @app.route("/api/headers")
 def get_headers():
-    logger.info(f"DAST Insecure Headers test - DAST_VULNS: {DAST_VULNS}")
-    
-    # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
-    if DAST_VULNS:
-        response = jsonify({"message": "Headers info"})
-        response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
-        response.headers['Server'] = 'Apache/2.4.41'  # NOSONAR
-        response.headers['X-Frame-Options'] = 'NONE'  # NOSONAR
-        response.headers['X-Content-Type-Options'] = 'NONE'  # NOSONAR
-        return response
-    else:
-        # Secure version - secure headers when DAST is disabled
-        response = jsonify({"message": "DAST vulnerabilities disabled"})
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        return response
+    # DAST Vulnerability (Information Disclosure) - Comment/Uncomment this line
+    response = jsonify({"message": "Test"})
+    response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
+    return response
 
 # ===== CONFIGURATION ENDPOINTS =====
 

@@ -2,7 +2,7 @@ name: Security Pipeline - SAST, SCM, DAST
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -20,7 +20,6 @@ jobs:
   sast:
     name: SAST - SonarCloud
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     continue-on-error: true
     steps:
       - name: Checkout code
@@ -36,18 +35,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          echo "Running unit tests with coverage..."
-          python -m pytest test_app.py --cov=app --cov-report=xml:coverage.xml --cov-report=term-missing
-          echo "Tests completed successfully"
-
-      - name: Configure SonarCloud properties
-        run: |
-          if [ "${{ secrets.SAST_VULNS || 'false' }}" = "false" ]; then
-            echo "Using secure SonarCloud configuration (vulnerabilities disabled)"
-            cp sonar-secure.properties sonar-project.properties
-          else
-            echo "Using standard SonarCloud configuration (vulnerabilities enabled)"
-          fi
+          python -m pytest test_app.py --cov=app --cov-report=xml:coverage.xml
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -57,73 +45,31 @@ jobs:
           SONAR_PROJECTKEY: ${{ secrets.SONAR_PROJECTKEY }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
 
-  # SCM - Container Security with Snyk
+  # SCM - GitHub Code Scanning
   scm:
-    name: SCM - Snyk
+    name: SCM - CodeQL
     runs-on: ubuntu-latest
     needs: sast
-    if: github.ref == 'refs/heads/main'
     continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          python-version: '3.11'
+          languages: python
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build and test dependencies
-        run: |
-          echo "Testing dependencies..."
-          python test-build.py
-          echo "Dependencies test completed successfully"
-
-      - name: Build Docker image
-        run: |
-          echo "Building Docker image..."
-          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
-          echo "Docker image built successfully"
-
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/python@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
         with:
-          command: test
-          args: --severity-threshold=medium --sarif-file-output=snyk-code.sarif
-
-      - name: Run Snyk Container
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          args: --file=Dockerfile --severity-threshold=medium --sarif-file-output=snyk-container.sarif
-
-      - name: Upload Snyk Code results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: snyk-code.sarif
-          category: snyk-code
-
-      - name: Upload Snyk Container results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: snyk-container.sarif
-          category: snyk-container
+          category: "/language:python"
 
   # Build and Deploy
   build-and-deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
     needs: [sast, scm]
-    if: github.ref == 'refs/heads/main'
     continue-on-error: true
     steps:
       - name: Checkout code
@@ -136,136 +82,33 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         run: |
-          echo "Building Docker image..."
           docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
-          echo "Docker image built successfully"
-
-      - name: Push Docker image
-        run: |
-          echo "Pushing Docker image to registry..."
           docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "Docker image pushed successfully"
 
   # DAST - ZAP Proxy Security Testing
   dast:
-    name: DAST - ZAP Proxy
+    name: DAST - ZAP
     runs-on: ubuntu-latest
     needs: build-and-deploy
-    if: github.ref == 'refs/heads/main'
     continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Start Flask app
         run: |
-          echo "Pulling Docker image..."
           docker pull ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "Starting Flask app container..."
-          docker run -d -p 5000:5000 \
-            -e SAST_VULNS=${{ secrets.SAST_VULNS || 'false' }} \
-            -e SCM_VULNS=${{ secrets.SCM_VULNS || 'false' }} \
-            -e DAST_VULNS=${{ secrets.DAST_VULNS || 'false' }} \
-            -e XSS_VULN=${{ secrets.XSS_VULN || 'false' }} \
-            -e SQL_INJECTION_VULN=${{ secrets.SQL_INJECTION_VULN || 'false' }} \
-            -e COMMAND_INJECTION_VULN=${{ secrets.COMMAND_INJECTION_VULN || 'false' }} \
-            -e PATH_TRAVERSAL_VULN=${{ secrets.PATH_TRAVERSAL_VULN || 'false' }} \
-            -e HARDCODED_SECRETS_VULN=${{ secrets.HARDCODED_SECRETS_VULN || 'false' }} \
-            -e INSECURE_DEPENDENCIES=${{ secrets.INSECURE_DEPENDENCIES || 'false' }} \
-            --name flask-app \
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "Container started, waiting for app to be ready..."
-          sleep 15
+          docker run -d -p 5000:5000 --name flask-app ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          sleep 10
 
-      - name: Verify app is running
-        run: |
-          echo "Checking if Flask app is running..."
-          for i in {1..30}; do
-            if curl -f http://localhost:5000/health > /dev/null 2>&1; then
-              echo "✅ App is running successfully!"
-              curl -s http://localhost:5000/health | jq .
-              break
-            fi
-            echo "Attempt $i: App not ready yet, waiting..."
-            sleep 2
-          done
-        continue-on-error: true
-
-      - name: Install ZAP
-        run: |
-          echo "Installing ZAP..."
-          wget https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz
-          tar -xzf ZAP_2.14.0_Linux.tar.gz
-          sudo mv ZAP_2.14.0 /opt/zap
-          sudo chmod +x /opt/zap/zap.sh
-          echo "ZAP installed at /opt/zap"
-          /opt/zap/zap.sh -version
-        continue-on-error: true
-
-      - name: Create ZAP results directory
-        run: |
-          mkdir -p .zap/wrk
-          echo "ZAP results directory created"
-
-      - name: Run ZAP Baseline Scan
-        run: |
-          echo "Running ZAP scan..."
-          if [ -f "/opt/zap/zap.sh" ]; then
-            /opt/zap/zap.sh -cmd -quickurl http://localhost:5000 -quickout .zap/wrk/zap-report.html -quickprogress
-            echo "ZAP scan completed with CLI version"
-          else
-            echo "ZAP CLI not found, trying alternative installation..."
-            sudo apt-get update
-            sudo apt-get install -y zaproxy
-            zaproxy -cmd -quickurl http://localhost:5000 -quickout .zap/wrk/zap-report.html -quickprogress
-            echo "ZAP scan completed with apt version"
-          fi
-          echo "ZAP scan finished"
-        continue-on-error: true
-        timeout-minutes: 15
-
-      - name: Simple ZAP Test
-        run: |
-          echo "Running simple ZAP test..."
-          curl -f http://localhost:5000 || echo "App not accessible"
-          echo "DAST test completed (simplified version)"
-        continue-on-error: true
-        if: failure()
-
-      - name: Generate ZAP Summary
-        run: |
-          echo "🔍 ZAP DAST Scan Summary" > .zap/wrk/zap-summary.txt
-          echo "=========================" >> .zap/wrk/zap-summary.txt
-          echo "" >> .zap/wrk/zap-summary.txt
-          echo "Target URL: http://localhost:5000" >> .zap/wrk/zap-summary.txt
-          echo "Scan Type: Baseline Scan" >> .zap/wrk/zap-summary.txt
-          echo "Timestamp: $(date)" >> .zap/wrk/zap-summary.txt
-          echo "" >> .zap/wrk/zap-summary.txt
-          echo "Vulnerability Status:" >> .zap/wrk/zap-summary.txt
-          echo "- SAST_VULNS: ${{ secrets.SAST_VULNS || 'false' }}" >> .zap/wrk/zap-summary.txt
-          echo "- SCM_VULNS: ${{ secrets.SCM_VULNS || 'false' }}" >> .zap/wrk/zap-summary.txt
-          echo "- DAST_VULNS: ${{ secrets.DAST_VULNS || 'false' }}" >> .zap/wrk/zap-summary.txt
-          echo "" >> .zap/wrk/zap-summary.txt
-          echo "Files generated:" >> .zap/wrk/zap-summary.txt
-          ls -la .zap/wrk/ >> .zap/wrk/zap-summary.txt
-          echo "ZAP summary generated"
-
-      - name: Upload ZAP results
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: ZAP Scan
+        uses: zaproxy/action-baseline@v0.11.0
         with:
-          name: zap-results
-          path: .zap/wrk/
-          retention-days: 30
+          target: 'http://localhost:5000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
 
   # Security Summary
   security-summary:
@@ -275,7 +118,6 @@ jobs:
     if: always()
     steps:
       - name: Security Summary
-        if: always()
         run: |
           echo "🔒 SECURITY PIPELINE SUMMARY"
           echo "================================"
@@ -288,66 +130,27 @@ jobs:
             elif [ "$1" == "failure" ]; then
               echo "❌ FAILED"
             else
-              echo "⚠️  SKIPPED/UNKNOWN"
+              echo "⚠️  SKIPPED"
             fi
           }
           
-          # SAST Status
-          SAST_STATUS=$(get_status "${{ needs.sast.result }}")
-          echo "SAST (SonarCloud): $SAST_STATUS"
-          if [ "${{ needs.sast.result }}" == "success" ]; then
-            echo "  ↳ Quality Gate passed, view at: https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECTKEY }}"
-          elif [ "${{ needs.sast.result }}" == "failure" ]; then
-            echo "  ↳ Quality Gate failed, check: https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECTKEY }}"
-          fi
+          # Print status for each stage
+          echo "SAST (SonarCloud): $(get_status "${{ needs.sast.result }}")"
+          echo "SCM (CodeQL): $(get_status "${{ needs.scm.result }}")"
+          echo "Build & Deploy: $(get_status "${{ needs.build-and-deploy.result }}")"
+          echo "DAST (ZAP): $(get_status "${{ needs.dast.result }}")"
           echo ""
           
-          # SCM Status
-          SCM_STATUS=$(get_status "${{ needs.scm.result }}")
-          echo "SCM (Snyk): $SCM_STATUS"
-          if [ "${{ needs.scm.result }}" == "success" ]; then
-            echo "  ↳ No critical/high vulnerabilities found"
-            echo "  ↳ View results at: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}"
-          elif [ "${{ needs.scm.result }}" == "failure" ]; then
-            echo "  ↳ Vulnerabilities found, check: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}"
-          fi
-          echo ""
-          
-          # Build Status
-          BUILD_STATUS=$(get_status "${{ needs.build-and-deploy.result }}")
-          echo "Build & Deploy: $BUILD_STATUS"
-          if [ "${{ needs.build-and-deploy.result }}" == "success" ]; then
-            echo "  ↳ Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          fi
-          echo ""
-          
-          # DAST Status
-          DAST_STATUS=$(get_status "${{ needs.dast.result }}")
-          echo "DAST (ZAP): $DAST_STATUS"
-          if [ "${{ needs.dast.result }}" == "success" ]; then
-            echo "  ↳ No critical vulnerabilities found"
-            echo "  ↳ Full report available in workflow artifacts"
-          elif [ "${{ needs.dast.result }}" == "failure" ]; then
-            echo "  ↳ Vulnerabilities found, check workflow artifacts"
-          fi
-          echo ""
-          
-          # Overall Status
+          # Overall status
           echo "📊 OVERALL STATUS"
           echo "=================="
-          if [ "${{ needs.sast.result }}" == "success" ] && [ "${{ needs.scm.result }}" == "success" ] && [ "${{ needs.build-and-deploy.result }}" == "success" ] && [ "${{ needs.dast.result }}" == "success" ]; then
-            echo "🎉 ALL CHECKS PASSED"
+          if [ "${{ needs.sast.result }}" == "success" ] && [ "${{ needs.scm.result }}" == "success" ] && [ "${{ needs.dast.result }}" == "success" ]; then
+            echo "🎉 ALL SECURITY CHECKS PASSED"
           else
-            echo "⚠️  SOME CHECKS NEED ATTENTION"
+            echo "⚠️  SECURITY ISSUES FOUND"
             echo ""
             echo "Issues found:"
             [ "${{ needs.sast.result }}" != "success" ] && echo "- SAST: Code quality/security issues"
-            [ "${{ needs.scm.result }}" != "success" ] && echo "- SCM: Container/dependency vulnerabilities"
-            [ "${{ needs.build-and-deploy.result }}" != "success" ] && echo "- Build: Image build/deploy issues"
+            [ "${{ needs.scm.result }}" != "success" ] && echo "- SCM: Code scanning issues"
             [ "${{ needs.dast.result }}" != "success" ] && echo "- DAST: Runtime security issues"
-          fi
-          echo ""
-          echo "📚 DOCUMENTATION:"
-          echo "- SAST: https://docs.sonarcloud.io/"
-          echo "- SCM: https://app.snyk.io/"
-          echo "- DAST: https://www.zaproxy.org/docs/" 
+          fi 
