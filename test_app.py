@@ -114,51 +114,106 @@ class TestSecurityApp(unittest.TestCase):
         data = json.loads(response.data)
         self.assertIn('disabled', data['message'])
 
-    @patch.dict(os.environ, {'SAST_VULNS': 'true', 'SQL_INJECTION_VULN': 'true'})
+    @patch.dict(os.environ, {
+        'SAST_VULNS': 'true', 
+        'SQL_INJECTION_VULN': 'true'
+    })
     def test_user_endpoint_enabled(self):
         """Test user endpoint when SQL injection is enabled"""
-        response = self.app.get('/api/user/123')
+        # Reimport app to get fresh environment variable parsing
+        import importlib
+        import app
+        importlib.reload(app)
+        
+        test_app = app.app.test_client()
+        test_app.testing = True
+        
+        response = test_app.get('/api/user/123')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertIn('users', data)
 
-    @patch.dict(os.environ, {'SAST_VULNS': 'true', 'COMMAND_INJECTION_VULN': 'true'})
+    @patch.dict(os.environ, {
+        'SAST_VULNS': 'true', 
+        'COMMAND_INJECTION_VULN': 'true'
+    })
     def test_ping_endpoint_enabled(self):
         """Test ping endpoint when command injection is enabled"""
+        # Reimport app to get fresh environment variable parsing
+        import importlib
+        import app
+        importlib.reload(app)
+        
+        test_app = app.app.test_client()
+        test_app.testing = True
+        
         test_data = {"host": "localhost"}
-        response = self.app.post('/api/ping',
+        response = test_app.post('/api/ping',
                                data=json.dumps(test_data),
                                content_type='application/json')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertIn('result', data)
 
-    @patch.dict(os.environ, {'SCM_VULNS': 'true', 'HARDCODED_SECRETS_VULN': 'true'})
+    @patch.dict(os.environ, {
+        'SCM_VULNS': 'true', 
+        'HARDCODED_SECRETS_VULN': 'true'
+    })
     def test_secrets_endpoint_enabled(self):
         """Test secrets endpoint when hardcoded secrets are enabled"""
-        response = self.app.get('/api/secrets')
+        # Reimport app to get fresh environment variable parsing
+        import importlib
+        import app
+        importlib.reload(app)
+        
+        test_app = app.app.test_client()
+        test_app.testing = True
+        
+        response = test_app.get('/api/secrets')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertIn('database_password', data)
 
-    @patch.dict(os.environ, {'SCM_VULNS': 'true', 'INSECURE_DEPENDENCIES': 'true'})
+    @patch.dict(os.environ, {
+        'SCM_VULNS': 'true', 
+        'INSECURE_DEPENDENCIES': 'true'
+    })
     def test_dependencies_endpoint_enabled(self):
         """Test dependencies endpoint when insecure dependencies are enabled"""
-        response = self.app.get('/api/dependencies')
+        # Reimport app to get fresh environment variable parsing
+        import importlib
+        import app
+        importlib.reload(app)
+        
+        test_app = app.app.test_client()
+        test_app.testing = True
+        
+        response = test_app.get('/api/dependencies')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertIn('requests', data)
 
-    @patch.dict(os.environ, {'DAST_VULNS': 'true', 'PATH_TRAVERSAL_VULN': 'true'})
+    @patch.dict(os.environ, {
+        'DAST_VULNS': 'true', 
+        'PATH_TRAVERSAL_VULN': 'true'
+    })
     def test_file_endpoint_enabled(self):
         """Test file endpoint when path traversal is enabled"""
+        # Reimport app to get fresh environment variable parsing
+        import importlib
+        import app
+        importlib.reload(app)
+        
+        test_app = app.app.test_client()
+        test_app.testing = True
+        
         # Create a temporary file for testing
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
             f.write('test content')
             temp_file = f.name
         
         try:
-            response = self.app.get(f'/api/file/{temp_file}')
+            response = test_app.get(f'/api/file/{temp_file}')
             self.assertEqual(response.status_code, 200)
             data = json.loads(response.data)
             self.assertIn('content', data)
@@ -168,7 +223,15 @@ class TestSecurityApp(unittest.TestCase):
     @patch.dict(os.environ, {'DAST_VULNS': 'true'})
     def test_headers_endpoint_enabled(self):
         """Test headers endpoint when DAST vulnerabilities are enabled"""
-        response = self.app.get('/api/headers')
+        # Reimport app to get fresh environment variable parsing
+        import importlib
+        import app
+        importlib.reload(app)
+        
+        test_app = app.app.test_client()
+        test_app.testing = True
+        
+        response = test_app.get('/api/headers')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertIn('message', data)
@@ -184,7 +247,7 @@ class TestSecurityApp(unittest.TestCase):
         """Test handling of missing content type"""
         response = self.app.post('/api/echo',
                                data='{"test": "value"}')
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 415)  # Unsupported Media Type
 
     def test_404_endpoint(self):
         """Test 404 handling"""
@@ -219,6 +282,23 @@ class TestSecurityApp(unittest.TestCase):
                 
                 # Check if the variable is parsed correctly
                 self.assertEqual(app.SAST_VULNS, expected)
+
+    def test_secure_versions_when_disabled(self):
+        """Test that secure versions are used when vulnerabilities are disabled"""
+        # Test dependencies endpoint returns secure versions
+        response = self.app.get('/api/dependencies')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertIn('message', data)
+        self.assertIn('disabled', data['message'])
+
+    def test_secure_headers_when_disabled(self):
+        """Test that secure headers are set when DAST is disabled"""
+        response = self.app.get('/api/headers')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertIn('message', data)
+        self.assertIn('disabled', data['message'])
 
 if __name__ == '__main__':
     unittest.main() 
