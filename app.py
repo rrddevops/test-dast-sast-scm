@@ -9,17 +9,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuração de vulnerabilidades (via variáveis de ambiente)
-SAST_VULNS = os.getenv('SAST_VULNS', 'false').lower() == 'false'
-SCM_VULNS = os.getenv('SCM_VULNS', 'false').lower() == 'false'
-DAST_VULNS = os.getenv('DAST_VULNS', 'false').lower() == 'false'
+SAST_VULNS = os.getenv('SAST_VULNS', 'false').lower() == 'true'
+SCM_VULNS = os.getenv('SCM_VULNS', 'false').lower() == 'true'
+DAST_VULNS = os.getenv('DAST_VULNS', 'false').lower() == 'true'
 
 # Vulnerabilidades específicas
-XSS_VULN = os.getenv('XSS_VULN', 'false').lower() == 'false'
-SQL_INJECTION_VULN = os.getenv('SQL_INJECTION_VULN', 'false').lower() == 'false'
-COMMAND_INJECTION_VULN = os.getenv('COMMAND_INJECTION_VULN', 'false').lower() == 'false'
-PATH_TRAVERSAL_VULN = os.getenv('PATH_TRAVERSAL_VULN', 'false').lower() == 'false'
-HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'false').lower() == 'false'
-INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'false').lower() == 'false'
+XSS_VULN = os.getenv('XSS_VULN', 'false').lower() == 'true'
+SQL_INJECTION_VULN = os.getenv('SQL_INJECTION_VULN', 'false').lower() == 'true'
+COMMAND_INJECTION_VULN = os.getenv('COMMAND_INJECTION_VULN', 'false').lower() == 'true'
+PATH_TRAVERSAL_VULN = os.getenv('PATH_TRAVERSAL_VULN', 'false').lower() == 'true'
+HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'false').lower() == 'true'
+INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'false').lower() == 'true'
 
 # Log vulnerability status on startup
 logger.info(f"Vulnerability Status:")
@@ -184,7 +184,7 @@ def get_user(user_id):
             return jsonify({"error": str(e)})
     else:
         # Secure version - no vulnerabilities
-        return jsonify({"message": "Secure SQL query would be executed here"})
+        return jsonify({"message": "SQL injection vulnerability disabled"})
 
 @app.route("/api/ping", methods=["POST"])
 def ping_host():
@@ -206,9 +206,7 @@ def ping_host():
             return jsonify({"error": str(e)})
     else:
         # Secure version - no vulnerabilities
-        data = request.json
-        host = data.get('host', '')
-        return jsonify({"message": f"Ping to {host} would be executed (simulated)"})
+        return jsonify({"message": "Command injection vulnerability disabled"})
 
 # ===== SCM VULNERABILITIES =====
 
@@ -231,7 +229,7 @@ def get_secrets():
         return jsonify(secrets)
     else:
         # Secure version - no secrets exposed
-        return jsonify({"message": "No secrets exposed"})
+        return jsonify({"message": "Hardcoded secrets vulnerability disabled"})
 
 @app.route("/api/dependencies")
 def get_dependencies():
@@ -250,17 +248,11 @@ def get_dependencies():
         return jsonify(dependencies)
     else:
         # Secure version - latest versions
-        dependencies = {
-            "flask": "2.3.3",
-            "requests": "2.31.0",  # Latest secure version
-            "gunicorn": "21.2.0"
-        }
-        return jsonify(dependencies)
+        return jsonify({"message": "Insecure dependencies vulnerability disabled"})
 
 # ===== DAST VULNERABILITIES =====
 
-@app.route("/api/file/<path:file_path>")
-@app.route("/api/file/<path:file_path>/")
+@app.route("/api/file/<path:file_path>", strict_slashes=False)
 def read_file(file_path):
     logger.info(f"DAST Path Traversal test - DAST_VULNS: {DAST_VULNS}, PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
     
@@ -277,16 +269,7 @@ def read_file(file_path):
             return jsonify({"error": str(e)})
     else:
         # Secure version - path validation
-        import pathlib
-        try:
-            safe_path = pathlib.Path(file_path).resolve()
-            if '..' in str(safe_path):
-                return jsonify({"error": "Path traversal not allowed"})
-            with open(safe_path, 'r') as f:
-                content = f.read()
-            return jsonify({"content": content})
-        except Exception as e:
-            return jsonify({"error": str(e)})
+        return jsonify({"message": "Path traversal vulnerability disabled"})
 
 @app.route("/api/headers")
 def get_headers():
@@ -294,7 +277,7 @@ def get_headers():
     
     if not DAST_VULNS:
         # Secure version - secure headers when DAST is disabled
-        response = jsonify({"message": "Headers info"})
+        response = jsonify({"message": "DAST vulnerabilities disabled"})
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         return response
