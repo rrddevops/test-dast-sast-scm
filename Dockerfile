@@ -27,6 +27,8 @@ ENV PATH_TRAVERSAL_VULN=false
 ENV HARDCODED_SECRETS_VULN=false
 ENV INSECURE_DEPENDENCIES=false
 
+ENV ENABLE_VULNS=false
+
 EXPOSE 5000
 
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"] 

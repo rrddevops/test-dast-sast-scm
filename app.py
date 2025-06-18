@@ -36,25 +36,17 @@ logger.info(f"  INSECURE_DEPENDENCIES: {INSECURE_DEPENDENCIES}")
 
 @app.route("/")
 def home():
-    return render_template_string("""
+    return """
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Security Test App - SAST, SCM, DAST</title>
+        <title>Security Test App</title>
         <style>
             body { font-family: Arial, sans-serif; margin: 40px; }
-            .vuln-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-            .vuln-active { background-color: #ffe6e6; border-color: #ff9999; }
-            .vuln-inactive { background-color: #e6ffe6; border-color: #99ff99; }
-            .status { font-weight: bold; }
-            .active { color: red; }
-            .inactive { color: green; }
-            button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-            input { padding: 5px; margin: 5px; }
         </style>
     </head>
     <body>
-        <h1>🔒 Security Test Application</h1>
+        <h1>Security Test Application</h1>
         <p>Endpoints para teste de vulnerabilidades:</p>
         <ul>
             <li><code>/api/user/123</code> - SAST (SQL Injection)</li>
@@ -63,7 +55,7 @@ def home():
         </ul>
     </body>
     </html>
-    """, SAST_VULNS=SAST_VULNS, SCM_VULNS=SCM_VULNS, DAST_VULNS=DAST_VULNS)
+    """
 
 @app.route("/api/echo", methods=["POST"])
 def echo():
@@ -75,18 +67,20 @@ def echo():
 @app.route("/api/user/<user_id>")
 def get_user(user_id):
     # SAST Vulnerability (SQL Injection) - Comment/Uncomment this line
-    query = f"SELECT * FROM users WHERE id = {user_id}"  # NOSONAR
-    
-    try:
-        conn = sqlite3.connect(':memory:')
-        cursor = conn.cursor()
-        cursor.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
-        cursor.execute("INSERT INTO users (id, name) VALUES (123, 'test_user')")
-        cursor.execute(query)
-        result = cursor.fetchall()
-        return jsonify({"result": result})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    if os.getenv('ENABLE_VULNS', 'false').lower() == 'true':
+        query = f"SELECT * FROM users WHERE id = {user_id}"  # NOSONAR
+        try:
+            conn = sqlite3.connect(':memory:')
+            cursor = conn.cursor()
+            cursor.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
+            cursor.execute("INSERT INTO users (id, name) VALUES (123, 'test_user')")
+            cursor.execute(query)
+            result = cursor.fetchall()
+            return jsonify({"users": result})
+        except Exception as e:
+            return jsonify({"error": str(e)})
+    else:
+        return jsonify({"message": "SQL injection vulnerability disabled"})
 
 @app.route("/api/ping", methods=["POST"])
 def ping_host():
@@ -115,9 +109,14 @@ def ping_host():
 @app.route("/api/secrets")
 def get_secrets():
     # SCM Vulnerability (Hardcoded Secrets) - Comment/Uncomment this line
-    api_key = "sk_test_51ABCDEFGhijklmnop"  # NOSONAR
-    
-    return jsonify({"message": "Endpoint for testing SCM"})
+    if os.getenv('ENABLE_VULNS', 'false').lower() == 'true':
+        secrets = {
+            "database_password": "super_secret_password_123",  # NOSONAR
+            "api_key": "sk_test_51ABCDEFGhijklmnop"  # NOSONAR
+        }
+        return jsonify(secrets)
+    else:
+        return jsonify({"message": "Hardcoded secrets vulnerability disabled"})
 
 @app.route("/api/dependencies")
 def get_dependencies():
@@ -165,9 +164,15 @@ def read_file(file_path):
 @app.route("/api/headers")
 def get_headers():
     # DAST Vulnerability (Information Disclosure) - Comment/Uncomment this line
-    response = jsonify({"message": "Test"})
-    response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
-    return response
+    if os.getenv('ENABLE_VULNS', 'false').lower() == 'true':
+        response = jsonify({"message": "Headers info"})
+        response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
+        return response
+    else:
+        response = jsonify({"message": "DAST vulnerabilities disabled"})
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
 
 # ===== CONFIGURATION ENDPOINTS =====
 
@@ -187,11 +192,7 @@ def get_config():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "healthy", "vulnerabilities": {
-        "sast": SAST_VULNS,
-        "scm": SCM_VULNS,
-        "dast": DAST_VULNS
-    }})
+    return jsonify({"status": "healthy"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True) 
+    app.run(host="0.0.0.0", port=5000) 
