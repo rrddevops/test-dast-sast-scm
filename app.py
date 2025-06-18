@@ -174,6 +174,9 @@ def get_user(user_id):
         try:
             conn = sqlite3.connect(':memory:')
             cursor = conn.cursor()
+            # Create table first for testing
+            cursor.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
+            cursor.execute("INSERT INTO users (id, name) VALUES (123, 'test_user')")
             cursor.execute(query)  # NOSONAR
             result = cursor.fetchall()
             return jsonify({"users": result})
@@ -257,6 +260,7 @@ def get_dependencies():
 # ===== DAST VULNERABILITIES =====
 
 @app.route("/api/file/<path:file_path>")
+@app.route("/api/file/<path:file_path>/")
 def read_file(file_path):
     logger.info(f"DAST Path Traversal test - DAST_VULNS: {DAST_VULNS}, PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
     
@@ -289,7 +293,11 @@ def get_headers():
     logger.info(f"DAST Insecure Headers test - DAST_VULNS: {DAST_VULNS}")
     
     if not DAST_VULNS:
-        return jsonify({"message": "DAST vulnerabilities disabled"})
+        # Secure version - secure headers when DAST is disabled
+        response = jsonify({"message": "Headers info"})
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
     
     # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
     if DAST_VULNS:
@@ -298,12 +306,6 @@ def get_headers():
         response.headers['Server'] = 'Apache/2.4.41'  # NOSONAR
         response.headers['X-Frame-Options'] = 'NONE'  # NOSONAR
         response.headers['X-Content-Type-Options'] = 'NONE'  # NOSONAR
-        return response
-    else:
-        # Secure version - secure headers
-        response = jsonify({"message": "Headers info"})
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['X-Content-Type-Options'] = 'nosniff'
         return response
 
 # ===== CONFIGURATION ENDPOINTS =====
