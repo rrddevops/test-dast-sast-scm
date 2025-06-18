@@ -14,7 +14,6 @@ permissions:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: rodrigordavila/test-dast-sast-scm
-  ENABLE_VULNS: false
 
 jobs:
   # SAST - SonarCloud Analysis
@@ -37,8 +36,6 @@ jobs:
       - name: Run tests with coverage
         run: |
           python -m pytest test_app.py --cov=app --cov-report=xml:coverage.xml
-        env:
-          ENABLE_VULNS: ${{ env.ENABLE_VULNS }}
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -103,10 +100,7 @@ jobs:
       - name: Start Flask app
         run: |
           docker pull ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker run -d -p 5000:5000 \
-            -e ENABLE_VULNS=${{ env.ENABLE_VULNS }} \
-            --name flask-app \
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker run -d -p 5000:5000 --name flask-app ${{ env.IMAGE_NAME }}:${{ github.sha }}
           sleep 10
 
       - name: ZAP Scan
