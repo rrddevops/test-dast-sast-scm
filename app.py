@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, redirect, url_for
 import os
 import logging
 
@@ -254,8 +254,8 @@ def get_dependencies():
 
 @app.route("/api/file/<path:file_path>")
 def read_file(file_path):
-    # Remove any trailing slashes to handle both with and without slash
-    file_path = file_path.rstrip('/')
+    # Normalize the path by removing trailing slashes
+    normalized_path = os.path.normpath(file_path)
     
     logger.info(f"DAST Path Traversal test - DAST_VULNS: {DAST_VULNS}, PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
     
@@ -265,7 +265,7 @@ def read_file(file_path):
     # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
     if DAST_VULNS and PATH_TRAVERSAL_VULN:
         try:
-            with open(file_path, 'r') as f:  # NOSONAR
+            with open(normalized_path, 'r') as f:  # NOSONAR
                 content = f.read()
             return jsonify({"content": content})
         except Exception as e:
@@ -278,20 +278,20 @@ def read_file(file_path):
 def get_headers():
     logger.info(f"DAST Insecure Headers test - DAST_VULNS: {DAST_VULNS}")
     
-    if not DAST_VULNS:
+    # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
+    if DAST_VULNS:
+        response = jsonify({"message": "Headers info"})
+        response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
+        response.headers['Server'] = 'Apache/2.4.41'  # NOSONAR
+        response.headers['X-Frame-Options'] = 'NONE'  # NOSONAR
+        response.headers['X-Content-Type-Options'] = 'NONE'  # NOSONAR
+        return response
+    else:
         # Secure version - secure headers when DAST is disabled
         response = jsonify({"message": "DAST vulnerabilities disabled"})
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         return response
-    
-    # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
-    response = jsonify({"message": "Headers info"})
-    response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
-    response.headers['Server'] = 'Apache/2.4.41'  # NOSONAR
-    response.headers['X-Frame-Options'] = 'NONE'  # NOSONAR
-    response.headers['X-Content-Type-Options'] = 'NONE'  # NOSONAR
-    return response
 
 # ===== CONFIGURATION ENDPOINTS =====
 

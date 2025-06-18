@@ -57,9 +57,9 @@ jobs:
           SONAR_PROJECTKEY: ${{ secrets.SONAR_PROJECTKEY }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
 
-  # SCM - Container Security with Trivy
+  # SCM - Container Security with Snyk
   scm:
-    name: SCM - Trivy
+    name: SCM - Snyk
     runs-on: ubuntu-latest
     needs: sast
     if: github.ref == 'refs/heads/main'
@@ -88,36 +88,35 @@ jobs:
           docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
           echo "Docker image built successfully"
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          command: test
+          args: --severity-threshold=medium --sarif-file-output=snyk-code.sarif
 
-      - name: Run Trivy filesystem scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Run Snyk Container
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-fs-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          args: --file=Dockerfile --severity-threshold=medium --sarif-file-output=snyk-container.sarif
 
-      - name: Upload Trivy scan results to GitHub Security tab
+      - name: Upload Snyk Code results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: trivy-results.sarif
-          category: trivy-container
+          sarif_file: snyk-code.sarif
+          category: snyk-code
 
-      - name: Upload Trivy filesystem scan results to GitHub Security tab
+      - name: Upload Snyk Container results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: trivy-fs-results.sarif
-          category: trivy-filesystem
+          sarif_file: snyk-container.sarif
+          category: snyk-container
 
   # Build and Deploy
   build-and-deploy:
@@ -272,7 +271,7 @@ jobs:
   security-summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [sast, scm, dast]
+    needs: [sast, scm, build-and-deploy, dast]
     if: always()
     steps:
       - name: Security Summary
@@ -282,85 +281,73 @@ jobs:
           echo "================================"
           echo ""
           
+          # Function to get status emoji
+          get_status() {
+            if [ "$1" == "success" ]; then
+              echo "✅ PASSED"
+            elif [ "$1" == "failure" ]; then
+              echo "❌ FAILED"
+            else
+              echo "⚠️  SKIPPED/UNKNOWN"
+            fi
+          }
+          
           # SAST Status
-          if [ "${{ job.status }}" == "success" ] && [ "${{ needs.sast.result }}" == "success" ]; then
-            echo "✅ SAST (SonarCloud): PASSED"
-            echo "   - Static code analysis completed successfully"
-            echo "   - Quality Gate: PASSED"
-            echo "   - View details: https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECTKEY }}"
+          SAST_STATUS=$(get_status "${{ needs.sast.result }}")
+          echo "SAST (SonarCloud): $SAST_STATUS"
+          if [ "${{ needs.sast.result }}" == "success" ]; then
+            echo "  ↳ Quality Gate passed, view at: https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECTKEY }}"
           elif [ "${{ needs.sast.result }}" == "failure" ]; then
-            echo "❌ SAST (SonarCloud): FAILED"
-            echo "   - Static code analysis failed"
-            echo "   - Quality Gate: FAILED"
-            echo "   - View details: https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECTKEY }}"
-            echo "   - Pipeline continued despite failure"
-          else
-            echo "⚠️  SAST (SonarCloud): UNKNOWN"
-            echo "   - Status could not be determined"
+            echo "  ↳ Quality Gate failed, check: https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECTKEY }}"
           fi
           echo ""
           
           # SCM Status
+          SCM_STATUS=$(get_status "${{ needs.scm.result }}")
+          echo "SCM (Snyk): $SCM_STATUS"
           if [ "${{ needs.scm.result }}" == "success" ]; then
-            echo "✅ SCM (Trivy): PASSED"
-            echo "   - Container vulnerability scan completed"
-            echo "   - Results uploaded to GitHub Security tab"
+            echo "  ↳ No critical/high vulnerabilities found"
+            echo "  ↳ View results at: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}"
           elif [ "${{ needs.scm.result }}" == "failure" ]; then
-            echo "❌ SCM (Trivy): FAILED"
-            echo "   - Container vulnerability scan failed"
-            echo "   - Pipeline continued despite failure"
-          else
-            echo "⚠️  SCM (Trivy): UNKNOWN"
-            echo "   - Status could not be determined"
+            echo "  ↳ Vulnerabilities found, check: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}"
           fi
           echo ""
           
           # Build Status
+          BUILD_STATUS=$(get_status "${{ needs.build-and-deploy.result }}")
+          echo "Build & Deploy: $BUILD_STATUS"
           if [ "${{ needs.build-and-deploy.result }}" == "success" ]; then
-            echo "✅ Build & Deploy: PASSED"
-            echo "   - Docker image built and pushed successfully"
-            echo "   - Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          elif [ "${{ needs.build-and-deploy.result }}" == "failure" ]; then
-            echo "❌ Build & Deploy: FAILED"
-            echo "   - Docker build or push failed"
-            echo "   - Pipeline continued despite failure"
-          else
-            echo "⚠️  Build & Deploy: UNKNOWN"
-            echo "   - Status could not be determined"
+            echo "  ↳ Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           fi
           echo ""
           
           # DAST Status
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ DAST (ZAP Proxy): PASSED"
-            echo "   - Dynamic application security testing completed"
-            echo "   - Results available as workflow artifacts"
-          elif [ "${{ job.status }}" == "failure" ]; then
-            echo "❌ DAST (ZAP Proxy): FAILED"
-            echo "   - Dynamic application security testing failed"
-            echo "   - Check workflow logs for details"
-          else
-            echo "⚠️  DAST (ZAP Proxy): UNKNOWN"
-            echo "   - Status could not be determined"
+          DAST_STATUS=$(get_status "${{ needs.dast.result }}")
+          echo "DAST (ZAP): $DAST_STATUS"
+          if [ "${{ needs.dast.result }}" == "success" ]; then
+            echo "  ↳ No critical vulnerabilities found"
+            echo "  ↳ Full report available in workflow artifacts"
+          elif [ "${{ needs.dast.result }}" == "failure" ]; then
+            echo "  ↳ Vulnerabilities found, check workflow artifacts"
           fi
           echo ""
           
+          # Overall Status
           echo "📊 OVERALL STATUS"
           echo "=================="
-          if [ "${{ needs.sast.result }}" == "success" ] && [ "${{ needs.scm.result }}" == "success" ] && [ "${{ needs.build-and-deploy.result }}" == "success" ] && [ "${{ job.status }}" == "success" ]; then
-            echo "🎉 ALL TESTS PASSED - Application is secure!"
+          if [ "${{ needs.sast.result }}" == "success" ] && [ "${{ needs.scm.result }}" == "success" ] && [ "${{ needs.build-and-deploy.result }}" == "success" ] && [ "${{ needs.dast.result }}" == "success" ]; then
+            echo "🎉 ALL CHECKS PASSED"
           else
-            echo "⚠️  SOME TESTS FAILED - Review results above"
+            echo "⚠️  SOME CHECKS NEED ATTENTION"
             echo ""
-            echo "🔧 NEXT STEPS:"
-            echo "1. Check individual test results above"
-            echo "2. Review SonarCloud dashboard for SAST issues"
-            echo "3. Check GitHub Security tab for SCM results"
-            echo "4. Review workflow artifacts for DAST results"
-            echo "5. Fix issues and re-run pipeline"
+            echo "Issues found:"
+            [ "${{ needs.sast.result }}" != "success" ] && echo "- SAST: Code quality/security issues"
+            [ "${{ needs.scm.result }}" != "success" ] && echo "- SCM: Container/dependency vulnerabilities"
+            [ "${{ needs.build-and-deploy.result }}" != "success" ] && echo "- Build: Image build/deploy issues"
+            [ "${{ needs.dast.result }}" != "success" ] && echo "- DAST: Runtime security issues"
           fi
           echo ""
           echo "📚 DOCUMENTATION:"
           echo "- SAST: https://docs.sonarcloud.io/"
-          echo "- SCM: https://aquasecurity.github.io/trivy/"
+          echo "- SCM: https://app.snyk.io/"
           echo "- DAST: https://www.zaproxy.org/docs/" 
