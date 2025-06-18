@@ -14,12 +14,12 @@ SCM_VULNS = os.getenv('SCM_VULNS', 'false').lower() == 'false'
 DAST_VULNS = os.getenv('DAST_VULNS', 'false').lower() == 'false'
 
 # Vulnerabilidades específicas
-XSS_VULN = os.getenv('XSS_VULN', 'false').lower() == 'true'
-SQL_INJECTION_VULN = os.getenv('SQL_INJECTION_VULN', 'false').lower() == 'true'
-COMMAND_INJECTION_VULN = os.getenv('COMMAND_INJECTION_VULN', 'false').lower() == 'true'
-PATH_TRAVERSAL_VULN = os.getenv('PATH_TRAVERSAL_VULN', 'false').lower() == 'true'
-HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'false').lower() == 'true'
-INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'false').lower() == 'true'
+XSS_VULN = os.getenv('XSS_VULN', 'false').lower() == 'false'
+SQL_INJECTION_VULN = os.getenv('SQL_INJECTION_VULN', 'false').lower() == 'false'
+COMMAND_INJECTION_VULN = os.getenv('COMMAND_INJECTION_VULN', 'false').lower() == 'false'
+PATH_TRAVERSAL_VULN = os.getenv('PATH_TRAVERSAL_VULN', 'false').lower() == 'false'
+HARDCODED_SECRETS_VULN = os.getenv('HARDCODED_SECRETS_VULN', 'false').lower() == 'false'
+INSECURE_DEPENDENCIES = os.getenv('INSECURE_DEPENDENCIES', 'false').lower() == 'false'
 
 # Log vulnerability status on startup
 logger.info(f"Vulnerability Status:")
