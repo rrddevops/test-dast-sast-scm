@@ -252,8 +252,11 @@ def get_dependencies():
 
 # ===== DAST VULNERABILITIES =====
 
-@app.route("/api/file/<path:file_path>", strict_slashes=False)
+@app.route("/api/file/<path:file_path>")
 def read_file(file_path):
+    # Remove any trailing slashes to handle both with and without slash
+    file_path = file_path.rstrip('/')
+    
     logger.info(f"DAST Path Traversal test - DAST_VULNS: {DAST_VULNS}, PATH_TRAVERSAL_VULN: {PATH_TRAVERSAL_VULN}")
     
     if not DAST_VULNS or not PATH_TRAVERSAL_VULN:
@@ -283,13 +286,12 @@ def get_headers():
         return response
     
     # NOSONAR - This code is only executed when vulnerabilities are enabled for testing
-    if DAST_VULNS:
-        response = jsonify({"message": "Headers info"})
-        response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
-        response.headers['Server'] = 'Apache/2.4.41'  # NOSONAR
-        response.headers['X-Frame-Options'] = 'NONE'  # NOSONAR
-        response.headers['X-Content-Type-Options'] = 'NONE'  # NOSONAR
-        return response
+    response = jsonify({"message": "Headers info"})
+    response.headers['X-Powered-By'] = 'Flask/2.0.1'  # NOSONAR
+    response.headers['Server'] = 'Apache/2.4.41'  # NOSONAR
+    response.headers['X-Frame-Options'] = 'NONE'  # NOSONAR
+    response.headers['X-Content-Type-Options'] = 'NONE'  # NOSONAR
+    return response
 
 # ===== CONFIGURATION ENDPOINTS =====
 
